@@ -1,0 +1,197 @@
+<MODEL name = "SeguimientoLaboral2026"
+    types = "srdm"
+    operators = "srdm"
+    case-sensitive:"False"
+    author = "Estudiante"
+    created = "2026/05/21"
+    version = "3.2"
+    main="True">
+
+/* Capa de Orquestación: Carga de Semarity Grounding Artefacts (SGA)
+*/
+GROUNDING
+    {
+        SGART "Semarity Core"
+            VERSION "1.0" BY "Aprenda";
+        SGART "Semarity Semantic Modifiers"
+            VERSION "1.0" BY "Aprenda";
+        SGART "Semarity Data Governance"
+            VERSION "1.0" BY "Mary Araiza"
+            ALIAS "DGov";
+        SGART "Semarity WindowsUI"
+            VERSION "2.0" BY "Francisco Salazar"
+            ALIAS "WUI";
+        SGART "Semarity Date Conversions"
+            VERSION "1.0" BY "Fede Figueroa"
+            ALIAS "DConv";
+    }
+
+/* Enumeraciones semánticas (Formatos Globales y Rangos) */
+REGEX
+    {
+        "matid"  : "^([0-9]+)$";
+        "gender" : "^(H|M)$";  
+        "status" : "^(0|1)$";
+        "area_format" : "^(ingeniería|humanidades|medicina|ciencias sociales)$";
+        "rango_format" : "^(RECIEN EGRESADO|EN CONSOLIDACIÓN|ESTABLECIDO|DESARROLLADO)$";
+    }
+
+LABORAL_1650->LAB =
+    *matricula{str:identity}
+        @{REGEX:"matid";}
+        #{
+            LABEL:"Número de matrícula:";
+            COLUMN-LABEL:"Matrícula";
+            ALIAS:["ID Alumno", "Clave de estudiante"];
+        }
+        ##{"Número de matrícula único que el egresado tenía cuando era alumno."}
+        !{
+            WUI.CONTROL-ORDER:1;
+            WUI.INPUT-CONTROL-TYPE:"TEXTBOX";
+            WUI.DISPLAY-CONTROL-TYPE:"LABEL";
+        } +
+
+    nombre{str:description}
+        #{
+            LABEL:"Nombre(s) del egresado:";
+            COLUMN-LABEL:"Nombre";
+        }
+        ##{"Nombre o nombres de pila del egresado de la institución."}
+        !{
+            WUI.CONTROL-ORDER:2;
+            WUI.INPUT-CONTROL-TYPE:"TEXTBOX";
+            WUI.DISPLAY-CONTROL-TYPE:"LABEL";
+        } +
+
+    apellidos{str:description}
+        #{
+            LABEL:"Apellidos del egresado:";
+            COLUMN-LABEL:"Apellidos";
+        }
+        ##{"Apellidos paterno y materno completos del egresado."}
+        !{
+            WUI.CONTROL-ORDER:3;
+            WUI.INPUT-CONTROL-TYPE:"TEXTBOX";
+            WUI.DISPLAY-CONTROL-TYPE:"LABEL";
+        } +
+
+    f_nacimiento{date:temporal}
+        #{
+            LABEL:"Fecha de nacimiento:";
+            COLUMN-LABEL:"F. Nacimiento";
+        }
+        ##{"Fecha de nacimiento del egresado bajo el estándar YYYY-MM-DD."}
+        !{
+            WUI.CONTROL-ORDER:4;
+            WUI.INPUT-CONTROL-TYPE:"TEXTBOX";
+            WUI.DISPLAY-CONTROL-TYPE:"LABEL";
+        } +
+
+    sexo^{str:category}
+        @{REGEX:"gender";}
+        #{
+            LABEL:"Sexo biológico:";
+            COLUMN-LABEL:"Sexo";
+        }
+        ##{"Sexo del egresado. El acento circunflejo indica que admite nulos. Valores permitidos: 'H' o 'M'."}
+        !{
+            WUI.CONTROL-ORDER:5;
+            WUI.INPUT-CONTROL-TYPE:"DROP-DOWN";
+            WUI.DISPLAY-CONTROL-TYPE:"LABEL";
+        } +
+
+    egreso{date:temporal}
+        #{
+            LABEL:"Fecha de egreso:";
+            COLUMN-LABEL:"Egreso";
+        }
+        ##{"Fecha académica en que el alumno egresó de la carrera profesional."}
+        !{
+            WUI.CONTROL-ORDER:6;
+            WUI.INPUT-CONTROL-TYPE:"TEXTBOX";
+            WUI.DISPLAY-CONTROL-TYPE:"LABEL";
+        } +
+
+    area{str:category}
+        @{REGEX:"area_format";}
+        #{
+            LABEL:"Área del conocimiento:";
+            COLUMN-LABEL:"Área";
+        }
+        ##{"Área disciplinar de la carrera profesional guardada estrictamente en minúsculas."}
+        !{
+            WUI.CONTROL-ORDER:7;
+            WUI.INPUT-CONTROL-TYPE:"DROP-DOWN";
+            WUI.DISPLAY-CONTROL-TYPE:"LABEL";
+        } +
+
+    estado_laboral^{str:category}
+        @{REGEX:"status";}
+        #{
+            LABEL:"Situación laboral actual:";
+            COLUMN-LABEL:"Estatus Lab.";
+        }
+        ##{"Campo opcional (^) que indica si labora. '1': Sí; '0': No."}
+        !{
+            WUI.CONTROL-ORDER:8;
+            WUI.INPUT-CONTROL-TYPE:"TEXTBOX";
+            WUI.DISPLAY-CONTROL-TYPE:"LABEL";
+        } +
+
+    sueldo^{float64:value}
+        @{
+            NON-NEGATIVE;
+            REGEX:"^([0-9]{1,10}\.[0-9]{1,2})$";
+        }
+        #{
+            LABEL:"Sueldo mensual percibido:";
+            COLUMN-LABEL:"Sueldo";
+        }
+        ##{"Campo opcional (^) que expresa el sueldo mensual manifestado en caso de estar laborando."}
+        !{
+            WUI.CONTROL-ORDER:9;
+            WUI.INPUT-CONTROL-TYPE:"TEXTBOX";
+            WUI.DISPLAY-CONTROL-TYPE:"LABEL";
+        } +
+
+    /* Campo Calculado Derivado con la lógica de Rangos de Antigüedad basados en el corte (2026) */
+    rango_ant<
+        IF(DConv.YEAR("2026") - DConv.YEAR([egreso]) <= 5, "RECIEN EGRESADO",
+        IF(DConv.YEAR("2026") - DConv.YEAR([egreso]) <= 10, "EN CONSOLIDACIÓN",
+        IF(DConv.YEAR("2026") - DConv.YEAR([egreso]) <= 20, "ESTABLECIDO", 
+        "DESARROLLADO")))
+    >{str:category}
+        @{REGEX:"rango_format";}
+        #{
+            LABEL:"Rango de antigüedad:";
+            COLUMN-LABEL:"Rango Ant.";
+        }
+        ##{"Categoría obligatoria determinada deterministamente por la diferencia entre el año de corte (2026) y el año de egreso."}
+        !{
+            WUI.CONTROL-ORDER:10;
+            WUI.INPUT-CONTROL-TYPE:"TEXTBOX";
+            WUI.DISPLAY-CONTROL-TYPE:"LABEL";
+        };
+
+    /* Reglas de Validación Cruzada a Nivel Registro */
+    @{
+        IF(
+            [egreso] NOT NULL,
+            [egreso] >= [f_nacimiento]
+        );
+    }
+    #{
+        TITLE:"Seguimiento Laboral de Egresados";
+        ALIAS:["Padrón de Egresados", "Estatus Laboral"];
+    }
+    ##{"Set de datos de 1650 filas enfocado en el monitoreo del estatus económico y laboral de los egresados de la facultad."}
+    !{
+        DESCRIPTION-FIELD:"matricula";
+        WUI.WINDOW-TYPE:"MODAL";
+        DGov.DATA-OWNER:"Dirección Administrativa";
+        DGov.DATA-STEWARD:"Recursos Humanos";
+        DGov.CLASSIFICATION:"Restricted";
+        DGov.LAST-UPDATE:"2026-05-24";
+        DGov.DATA-QUALITY:"Critical";
+        DGov.REGULATION:["GDPR"];
+    };;
